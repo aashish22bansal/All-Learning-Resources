@@ -1,0 +1,105 @@
+---
+import type { MarkdownHeading } from 'astro';
+
+interface Props {
+  headings: MarkdownHeading[];
+}
+
+const headings = Astro.props.headings.filter((h) => h.depth === 2 || h.depth === 3);
+---
+
+{
+  headings.length > 0 && (
+    <nav class="toc" aria-labelledby="toc-title">
+      <p class="toc__title" id="toc-title">
+        On this page
+      </p>
+      <ul class="toc__list">
+        {headings.map((h) => (
+          <li class="toc__item" data-depth={h.depth}>
+            <a class="toc__link" href={`#${h.slug}`}>
+              {h.text}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}
+
+<script is:inline>
+  // Highlight the heading currently in the upper part of the viewport.
+  (() => {
+    const links = new Map(
+      [...document.querySelectorAll('.toc__link')].map((a) => [a.getAttribute('href').slice(1), a]),
+    );
+    if (links.size === 0) return;
+
+    const targets = [...links.keys()]
+      .map((id) => document.getElementById(id))
+      .filter(Boolean);
+
+    let active = null;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          active?.removeAttribute('aria-current');
+          active = links.get(entry.target.id) ?? null;
+          active?.setAttribute('aria-current', 'true');
+        }
+      },
+      { rootMargin: '-10% 0px -75% 0px', threshold: 0 },
+    );
+
+    targets.forEach((t) => observer.observe(t));
+  })();
+</script>
+
+<style>
+  .toc {
+    font-family: var(--font-ui);
+    font-size: var(--size-sm);
+  }
+
+  .toc__title {
+    margin: 0 0 var(--sp-3);
+    font-size: var(--size-xs);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  .toc__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-left: 1px solid var(--border);
+  }
+
+  .toc__item[data-depth='3'] .toc__link {
+    padding-left: var(--sp-6);
+    font-size: var(--size-xs);
+  }
+
+  .toc__link {
+    display: block;
+    padding: var(--sp-1) var(--sp-3);
+    margin-left: -1px;
+    border-left: 1px solid transparent;
+    color: var(--text-muted);
+    text-decoration: none;
+    line-height: 1.45;
+    transition: color var(--transition), border-color var(--transition);
+  }
+
+  .toc__link:hover {
+    color: var(--text);
+  }
+
+  .toc__link[aria-current='true'] {
+    color: var(--accent);
+    border-left-color: var(--accent);
+  }
+</style>

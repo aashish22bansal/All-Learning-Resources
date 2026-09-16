@@ -1,0 +1,273 @@
+---
+import { getCollection } from 'astro:content';
+import { listDomains, getDomain } from '../lib/domains.mjs';
+import { noteSlug, noteUrl } from '../lib/routes.mjs';
+
+interface Props {
+  /** Slug of the note being viewed, so its siblings are what the sidebar shows. */
+  current?: string;
+  domain?: string | null;
+}
+
+const { current, domain } = Astro.props;
+
+const notes = await getCollection('notes', ({ data }) => !data.draft);
+
+const counts = new Map<string, number>();
+for (const n of notes) {
+  const key = n.data.domain ?? '_none';
+  counts.set(key, (counts.get(key) ?? 0) + 1);
+}
+
+const siblings = notes
+  .filter((n) => (n.data.domain ?? null) === (domain ?? null))
+  .sort((a, b) => a.data.title.localeCompare(b.data.title));
+
+const entry = domain ? getDomain(domain) : null;
+
+// Children sit under their parent; parentless domains sort by note count so the
+// switcher leads with where the material actually is.
+const all = listDomains();
+const roots = all.filter((d) => !d.parent);
+const childrenOf = (id: string) => all.filter((d) => d.parent === id);
+const total = (d: { id: string }) =>
+  (counts.get(d.id) ?? 0) + childrenOf(d.id).reduce((s, c) => s + (counts.get(c.id) ?? 0), 0);
+const ordered = [...roots].sort((a, b) => total(b) - total(a));
+
+const unclassified = counts.get('_none') ?? 0;
+---
+
+<nav class="dn" aria-label="Notes in this domain">
+  <details class="switch">
+    <summary class="switch__current">
+      <span class="switch__label">
+        {entry ? entry.name : 'Unclassified'}
+        <span class="switch__count">{siblings.length}</span>
+      </span>
+      <svg viewBox="0 0 16 16" class="switch__chev" aria-hidden="true">
+        <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+      </svg>
+    </summary>
+
+    <ul class="switch__list">
+      {
+        ordered.map((d) => (
+          <li>
+            <a
+              class="switch__link"
+              href={`/domains/${d.id}/`}
+              style={`--c: var(--domain-${d.id})`}
+              aria-current={d.id === domain ? 'true' : undefined}
+            >
+              <span class="switch__short">{d.short}</span>
+              {d.name}
+              <span class="switch__count">{counts.get(d.id) ?? 0}</span>
+            </a>
+            {childrenOf(d.id).length > 0 && (
+              <ul class="switch__sub">
+                {childrenOf(d.id).map((c) => (
+                  <li>
+                    <a
+                      class="switch__link"
+                      href={`/domains/${c.id}/`}
+                      style={`--c: var(--domain-${c.id})`}
+                      aria-current={c.id === domain ? 'true' : undefined}
+                    >
+                      <span class="switch__short">{c.short}</span>
+                      {c.name}
+                      <span class="switch__count">{counts.get(c.id) ?? 0}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))
+      }
+      {
+        unclassified > 0 && (
+          <li>
+            <a class="switch__link switch__link--none" href="/inbox/">
+              <span class="switch__short">?</span>
+              Unclassified
+              <span class="switch__count">{unclassified}</span>
+            </a>
+          </li>
+        )
+      }
+    </ul>
+  </details>
+
+  <ul class="dn__list">
+    {
+      siblings.map((n) => (
+        <li>
+          <a
+            class="dn__link"
+            href={noteUrl(n)}
+            style={domain ? `--c: var(--domain-${domain})` : undefined}
+            aria-current={noteSlug(n) === current ? 'page' : undefined}
+          >
+            {n.data.title}
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+
+  <a class="dn__all" href="/notes/">All notes &rarr;</a>
+</nav>
+
+<style>
+  .dn {
+    font-family: var(--font-ui);
+    font-size: var(--size-sm);
+  }
+
+  /* ---------- Domain switcher ---------- */
+
+  .switch {
+    margin-bottom: var(--sp-6);
+  }
+
+  .switch__current {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    cursor: pointer;
+    list-style: none;
+    font-weight: 600;
+    transition: border-color var(--transition);
+  }
+
+  .switch__current::-webkit-details-marker {
+    display: none;
+  }
+
+  .switch__current:hover {
+    border-color: var(--border-strong);
+  }
+
+  .switch__label {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    min-width: 0;
+  }
+
+  .switch__chev {
+    width: 1rem;
+    height: 1rem;
+    flex: none;
+    color: var(--text-faint);
+    transition: transform var(--transition);
+  }
+
+  .switch[open] .switch__chev {
+    transform: rotate(180deg);
+  }
+
+  .switch__list,
+  .switch__sub {
+    list-style: none;
+    margin: var(--sp-2) 0 0;
+    padding: 0;
+  }
+
+  .switch__sub {
+    margin: 0 0 0 var(--sp-4);
+    border-left: 1px solid var(--border);
+    padding-left: var(--sp-2);
+  }
+
+  .switch__link {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-1) var(--sp-2);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color var(--transition), background var(--transition);
+  }
+
+  .switch__link:hover {
+    color: var(--text);
+    background: var(--surface-raised);
+  }
+
+  .switch__link[aria-current='true'] {
+    color: var(--text);
+    background: color-mix(in oklab, var(--c, var(--accent)) 14%, transparent);
+  }
+
+  .switch__short {
+    display: inline-grid;
+    place-items: center;
+    min-width: 2.1em;
+    padding-inline: 0.25em;
+    border-radius: 3px;
+    background: color-mix(in oklab, var(--c, var(--text-faint)) 20%, transparent);
+    color: var(--c, var(--text-faint));
+    font-size: var(--size-xs);
+    font-weight: 650;
+  }
+
+  .switch__link--none .switch__short {
+    --c: var(--text-faint);
+  }
+
+  .switch__count {
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+    font-size: var(--size-xs);
+    font-weight: 400;
+    color: var(--text-faint);
+  }
+
+  /* ---------- Sibling notes ---------- */
+
+  .dn__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-left: 1px solid var(--border);
+  }
+
+  .dn__link {
+    display: block;
+    padding: var(--sp-1) var(--sp-3);
+    margin-left: -1px;
+    border-left: 1px solid transparent;
+    color: var(--text-muted);
+    text-decoration: none;
+    line-height: 1.45;
+    transition: color var(--transition), border-color var(--transition);
+  }
+
+  .dn__link:hover {
+    color: var(--text);
+  }
+
+  .dn__link[aria-current='page'] {
+    color: var(--text);
+    border-left-color: var(--c, var(--accent));
+  }
+
+  .dn__all {
+    display: inline-block;
+    margin-top: var(--sp-6);
+    color: var(--text-faint);
+    text-decoration: none;
+    font-size: var(--size-xs);
+  }
+
+  .dn__all:hover {
+    color: var(--text);
+  }
+</style>

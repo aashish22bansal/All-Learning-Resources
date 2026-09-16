@@ -1,0 +1,91 @@
+# Domain registry.
+#
+# Add a line to add a domain. Nothing else needs to change — the schema, the
+# colours, the filters, the domain pages and the folder check all read this file.
+#
+#   name   required. Shown everywhere.
+#   short  required. 2-3 characters. Carries the identity on badges, because
+#          colour alone stops distinguishing domains somewhere past fifteen.
+#   blurb  optional. One line, shown on the domain page.
+#   hue    optional. 0-359. Pin it to keep a colour stable forever; leave it out
+#          and one is derived from the id.
+#   color  optional. Full override, escapes the generator entirely.
+#   parent optional. One level, grouping only. Use tags for real structure.
+#
+# Keep domains coarse — aim for 8 to 20. Tags do the fine-grained work.
+# "agents", "rag", "context-engineering" are tags under llms, not domains.
+
+databases:
+  name: Databases
+  short: DB
+  blurb: Oracle, SQL, PL/SQL, storage engines, query processing and the theory underneath them.
+  hue: 186
+
+data-engineering:
+  name: Data Engineering
+  short: DE
+  blurb: Pipelines, Spark, streaming, warehousing and moving data at size.
+  hue: 215
+
+machine-learning:
+  name: Machine Learning
+  short: ML
+  blurb: Optimization, statistics, classical models and how training actually works.
+  hue: 50
+
+deep-learning:
+  name: Deep Learning
+  short: DL
+  blurb: Neural architectures, representation learning and what scale changes.
+  hue: 30
+  parent: machine-learning
+
+llms:
+  name: LLMs & Agents
+  short: LLM
+  blurb: Language models, agents, context engineering, evaluation and the tooling around them.
+  hue: 288
+  parent: machine-learning
+
+programming:
+  name: Programming
+  short: PRG
+  blurb: Languages, algorithms, data structures and the craft of writing code.
+  hue: 120
+
+systems:
+  name: Systems
+  short: SYS
+  blurb: Operating systems, distributed systems, concurrency and architecture.
+  hue: 250
+
+networking:
+  name: Networking
+  short: NET
+  blurb: Protocols, routing, latency and how packets actually get there.
+  hue: 155
+
+security:
+  name: Security
+  short: SEC
+  blurb: Threat models, cryptography, access control and failure modes.
+  hue: 10
+
+strategy:
+  name: Strategy
+  short: STR
+  blurb: Business strategy, product thinking, decision-making under uncertainty.
+  hue: 320
+
+management:
+  name: Management
+  short: MGT
+  blurb: Leading people, running processes and the parts of the job that are not technical.
+  hue: 350
+
+communication:
+  name: Communication
+  short: COM
+  blurb: Writing, speaking, explaining hard things and being understood.
+  hue: 80
+

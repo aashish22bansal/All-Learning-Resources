@@ -1,0 +1,26 @@
+{
+  "name": "all-learning-resources",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "node scripts/check-links.mjs && astro build",
+    "rebuild": "npm run clean && npm run build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "check:links": "node scripts/check-links.mjs --strict",
+    "crawl": "node scripts/crawl-dist.mjs",
+    "verify": "npm run rebuild && npm run crawl",
+    "new": "node scripts/new-note.mjs",
+    "tidy": "node scripts/tidy.mjs",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true});require('node:fs').rmSync('.astro',{recursive:true,force:true});require('node:fs').rmSync('node_modules/.astro',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@astrojs/markdown-satteri": "^0.4.1",
+    "@astrojs/vercel": "^11.0.10",
+    "astro": "^7.3.3",
+    "astro-pagefind": "^2.0.1",
+    "yaml": "^2.9.1"
+  }
+}

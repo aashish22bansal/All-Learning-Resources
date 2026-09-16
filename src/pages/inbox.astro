@@ -1,0 +1,326 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import DomainBadge from '../components/DomainBadge.astro';
+import { listDomains } from '../lib/domains.mjs';
+import { getLinkGraph, getOrphans, getDeadEnds } from '../lib/links.mjs';
+import { noteSlug, noteUrl } from '../lib/routes.mjs';
+
+const notes = await getCollection('notes', ({ data }) => !data.draft);
+const { broken } = getLinkGraph();
+
+const bySlug = new Map(notes.map((n) => [noteSlug(n), n]));
+const lookup = (slugs: { slug: string }[]) => slugs.map((s) => bySlug.get(s.slug)).filter(Boolean);
+
+const STALE_DAYS = 180;
+const staleCutoff = Date.now() - STALE_DAYS * 24 * 60 * 60 * 1000;
+
+const unclassified = notes.filter((n) => !n.data.domain);
+
+const stubs = notes
+  .filter((n) => n.data.mastery === 'stub')
+  .sort((a, b) => (a.data.updated?.getTime() ?? 0) - (b.data.updated?.getTime() ?? 0));
+
+const orphans = lookup(getOrphans());
+const deadEnds = lookup(getDeadEnds());
+
+const stale = notes.filter(
+  (n) => n.data.mastery !== 'stub' && (n.data.updated?.getTime() ?? 0) < staleCutoff,
+);
+
+// Unresolved targets are notes you already decided to write.
+const wanted = new Map<string, number>();
+for (const b of broken) wanted.set(b.target, (wanted.get(b.target) ?? 0) + 1);
+const toWrite = [...wanted].sort((a, b) => b[1] - a[1]);
+
+const counts = new Map<string, number>();
+for (const n of notes) if (n.data.domain) counts.set(n.data.domain, (counts.get(n.data.domain) ?? 0) + 1);
+const sparse = listDomains().filter((d) => {
+  const c = counts.get(d.id) ?? 0;
+  return c > 0 && c < 3;
+});
+
+const sections = [
+  {
+    id: 'unclassified',
+    title: 'Not yet classified',
+    why: 'A stub can arrive with nothing but a title. Give it a domain and it joins the rest of the repository.',
+    notes: unclassified,
+  },
+  {
+    id: 'stubs',
+    title: 'Oldest stubs',
+    why: 'Captured but never written up, longest-waiting first. Either promote it or delete it — a stub that will never be written is just noise.',
+    notes: stubs.slice(0, 15),
+  },
+  {
+    id: 'orphans',
+    title: 'Orphans',
+    why: 'Nothing links here, so you will only ever find these by searching. Link to one from a note you already read.',
+    notes: orphans,
+  },
+  {
+    id: 'dead-ends',
+    title: 'Dead ends',
+    why: 'These link nowhere, so they never earn a backlink for anything else. A note that connects to nothing is barely in the graph.',
+    notes: deadEnds,
+  },
+  {
+    id: 'stale',
+    title: `Untouched for ${STALE_DAYS} days`,
+    why: 'Claims decay. Versions move, APIs change, and your understanding has probably improved.',
+    notes: stale,
+  },
+].filter((s) => s.notes.length > 0);
+
+const clean = sections.length === 0 && toWrite.length === 0 && sparse.length === 0;
+---
+
+<BaseLayout title="Inbox · All Learning Resources">
+  <div class="wrap page">
+    <h1 class="page__title">Inbox</h1>
+    <p class="page__lede">
+      Everything the repository knows is unfinished. This page exists so the backlog is a list of
+      specific next actions rather than a vague feeling of debt — and so capture never has to wait
+      for tidiness.
+    </p>
+
+    {
+      clean ? (
+        <p class="clean">Nothing outstanding. Go and learn something.</p>
+      ) : (
+        <>
+          {sections.map((s) => (
+            <section class="section" aria-labelledby={`${s.id}-title`}>
+              <h2 class="section__title" id={`${s.id}-title`}>
+                {s.title}
+                <span class="section__n">{s.notes.length}</span>
+              </h2>
+              <p class="section__why">{s.why}</p>
+              <ul class="list">
+                {s.notes.map((n) => (
+                  <li>
+                    <a class="row" href={noteUrl(n)}>
+                      <span class="row__title">{n.data.title}</span>
+                      <span class="row__meta">
+                        <DomainBadge domain={n.data.domain} compact />
+                        <span class="row__mastery">{n.data.mastery}</span>
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+
+          {toWrite.length > 0 && (
+            <section class="section" aria-labelledby="towrite-title">
+              <h2 class="section__title" id="towrite-title">
+                Linked but not written
+                <span class="section__n">{toWrite.length}</span>
+              </h2>
+              <p class="section__why">
+                You referred to these from somewhere, so you have already decided they should exist.
+                Copy the command to start one.
+              </p>
+              <ul class="cmds">
+                {toWrite.map(([target, n]) => (
+                  <li class="cmd">
+                    <code>npm run new -- "{target.replace(/-/g, ' ')}"</code>
+                    <span class="cmd__n">
+                      {n} reference{n === 1 ? '' : 's'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {sparse.length > 0 && (
+            <section class="section" aria-labelledby="sparse-title">
+              <h2 class="section__title" id="sparse-title">
+                Thin domains
+                <span class="section__n">{sparse.length}</span>
+              </h2>
+              <p class="section__why">
+                Fewer than three notes. Either the domain is too narrow and should be a tag on a
+                broader one, or it is simply new. Worth a glance, not an alarm.
+              </p>
+              <ul class="tags">
+                {sparse.map((d) => (
+                  <li>
+                    <a href={`/domains/${d.id}/`} style={`--c: var(--domain-${d.id})`}>
+                      {d.name} <span>{counts.get(d.id)}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
+      )
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .page {
+    padding-block: var(--sp-16) var(--sp-24);
+    max-width: 52rem;
+  }
+
+  .page__title {
+    font-size: var(--size-2xl);
+    margin-bottom: var(--sp-3);
+  }
+
+  .page__lede {
+    color: var(--text-muted);
+    margin: 0 0 var(--sp-12);
+  }
+
+  .clean {
+    padding: var(--sp-8);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-lg);
+    text-align: center;
+    color: var(--text-faint);
+    font-family: var(--font-ui);
+  }
+
+  .section {
+    margin-bottom: var(--sp-16);
+  }
+
+  .section__title {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    font-size: var(--size-lg);
+    margin-bottom: var(--sp-2);
+  }
+
+  .section__n {
+    font-family: var(--font-ui);
+    font-size: var(--size-xs);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-faint);
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0 var(--sp-2);
+  }
+
+  .section__why {
+    margin: 0 0 var(--sp-4);
+    color: var(--text-muted);
+    font-size: 0.9375rem;
+    max-width: 64ch;
+  }
+
+  .list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .list li {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    padding: var(--sp-3);
+    text-decoration: none;
+    color: inherit;
+    transition: background var(--transition);
+  }
+
+  .row:hover {
+    background: var(--surface);
+  }
+
+  .row__title {
+    font-family: var(--font-ui);
+    font-size: var(--size-sm);
+    font-weight: 600;
+    min-width: 0;
+  }
+
+  .row__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    flex: none;
+  }
+
+  .row__mastery {
+    font-family: var(--font-ui);
+    font-size: var(--size-xs);
+    color: var(--text-faint);
+  }
+
+  .cmds {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--sp-2);
+  }
+
+  .cmd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    padding: var(--sp-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  .cmd code {
+    color: var(--text);
+    font-size: var(--size-sm);
+    overflow-x: auto;
+  }
+
+  .cmd__n {
+    flex: none;
+    font-family: var(--font-ui);
+    font-size: var(--size-xs);
+    color: var(--text-faint);
+  }
+
+  .tags {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    margin: 0;
+    padding: 0;
+  }
+
+  .tags a {
+    display: inline-flex;
+    gap: var(--sp-2);
+    font-family: var(--font-ui);
+    font-size: var(--size-sm);
+    color: var(--c);
+    text-decoration: none;
+    border: 1px solid color-mix(in oklab, var(--c) 30%, transparent);
+    background: color-mix(in oklab, var(--c) 10%, transparent);
+    border-radius: 999px;
+    padding: 0.1rem var(--sp-3);
+  }
+
+  .tags span {
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

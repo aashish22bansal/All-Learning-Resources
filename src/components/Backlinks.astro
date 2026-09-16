@@ -1,0 +1,127 @@
+---
+import DomainBadge from './DomainBadge.astro';
+
+interface Props {
+  backlinks: {
+    slug: string;
+    title: string;
+    url: string;
+    domain: string | null;
+    context: string;
+  }[];
+}
+
+const { backlinks } = Astro.props;
+---
+
+<section class="mentions" aria-labelledby="mentions-title" data-pagefind-ignore>
+  <h2 class="mentions__title" id="mentions-title">
+    Linked mentions
+    <span class="mentions__count">{backlinks.length}</span>
+  </h2>
+
+  {
+    backlinks.length === 0 ? (
+      <p class="mentions__empty">
+        Nothing links here yet. A note with no way in is a note you will never find again — link to
+        it from something you already read.
+      </p>
+    ) : (
+      <ul class="mentions__list">
+        {backlinks.map((b) => (
+          <li class="mention">
+            <a class="mention__link" href={b.url}>
+              <span class="mention__head">
+                <span class="mention__title">{b.title}</span>
+                <DomainBadge domain={b.domain} compact />
+              </span>
+              {b.context && <span class="mention__ctx">{b.context}</span>}
+            </a>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+</section>
+
+<style>
+  .mentions {
+    margin-top: var(--sp-16);
+    padding-top: var(--sp-8);
+    border-top: 1px solid var(--border);
+    max-width: var(--measure);
+  }
+
+  .mentions__title {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    font-size: var(--size-xs);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: var(--sp-4);
+  }
+
+  .mentions__count {
+    font-variant-numeric: tabular-nums;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0 var(--sp-2);
+    letter-spacing: 0;
+  }
+
+  .mentions__empty {
+    font-family: var(--font-ui);
+    font-size: var(--size-sm);
+    color: var(--text-faint);
+    max-width: 48ch;
+    margin: 0;
+  }
+
+  .mentions__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--sp-2);
+  }
+
+  .mention__link {
+    display: grid;
+    gap: var(--sp-2);
+    padding: var(--sp-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    text-decoration: none;
+    color: inherit;
+    transition: border-color var(--transition), background var(--transition);
+  }
+
+  .mention__link:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-raised);
+  }
+
+  .mention__head {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    flex-wrap: wrap;
+  }
+
+  .mention__title {
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-size: var(--size-sm);
+  }
+
+  .mention__ctx {
+    color: var(--text-muted);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+  }
+</style>

@@ -1,0 +1,22 @@
+---
+import { getCollection, render } from 'astro:content';
+import NoteLayout from '../../layouts/NoteLayout.astro';
+import { getBacklinks } from '../../lib/links.mjs';
+import { noteSlug } from '../../lib/routes.mjs';
+
+export async function getStaticPaths() {
+  const notes = await getCollection('notes', ({ data }) => !data.draft);
+  return notes.map((note) => ({
+    params: { slug: noteSlug(note) },
+    props: { note },
+  }));
+}
+
+const { note } = Astro.props;
+const { Content, headings } = await render(note);
+const backlinks = getBacklinks(noteSlug(note));
+---
+
+<NoteLayout note={note} headings={headings} backlinks={backlinks}>
+  <Content />
+</NoteLayout>

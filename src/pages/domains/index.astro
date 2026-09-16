@@ -1,0 +1,188 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import MasteryBar from '../../components/MasteryBar.astro';
+import { listDomains } from '../../lib/domains.mjs';
+
+const notes = await getCollection('notes', ({ data }) => !data.draft);
+
+const domains = listDomains()
+  .map((d) => {
+    const items = notes.filter((n) => n.data.domain === d.id);
+    return {
+      ...d,
+      items,
+      minutes: items.reduce((s, n) => s + n.data.estMinutes, 0),
+    };
+  })
+  .sort((a, b) => b.items.length - a.items.length);
+
+const unclassified = notes.filter((n) => !n.data.domain).length;
+---
+
+<BaseLayout title="Domains · All Learning Resources">
+  <div class="wrap page">
+    <h1 class="page__title">Domains</h1>
+    <p class="page__lede">
+      The coarse shape of the repository. Domains are deliberately broad — a dozen or two, not a
+      hundred — because the fine-grained work is done by tags and by the links between notes. An
+      empty one is a standing invitation, not a failure.
+    </p>
+
+    <div class="grid">
+      {
+        domains.map((d) => (
+          <section class="panel" style={`--c: var(--domain-${d.id})`} data-empty={d.items.length === 0 ? '' : undefined}>
+            <header class="panel__head">
+              <a class="panel__name" href={`/domains/${d.id}/`}>
+                <span class="panel__short">{d.short}</span>
+                {d.name}
+              </a>
+              {d.parent && <p class="panel__parent">within {d.parent.replace(/-/g, ' ')}</p>}
+              <p class="panel__blurb">{d.blurb}</p>
+            </header>
+
+            <dl class="figures">
+              <div>
+                <dt>Notes</dt>
+                <dd>{d.items.length}</dd>
+              </div>
+              <div>
+                <dt>Reading</dt>
+                <dd>{d.minutes} min</dd>
+              </div>
+            </dl>
+
+            {d.items.length > 0 && <MasteryBar notes={d.items} />}
+          </section>
+        ))
+      }
+    </div>
+
+    {
+      unclassified > 0 && (
+        <p class="footnote">
+          <a href="/inbox/">{unclassified} note{unclassified === 1 ? '' : 's'} not yet classified</a> —
+          they are in the inbox.
+        </p>
+      )
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .page {
+    padding-block: var(--sp-16) var(--sp-24);
+  }
+
+  .page__title {
+    font-size: var(--size-2xl);
+    margin-bottom: var(--sp-3);
+  }
+
+  .page__lede {
+    max-width: var(--measure);
+    color: var(--text-muted);
+    margin: 0 0 var(--sp-12);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+    gap: var(--sp-4);
+  }
+
+  .panel {
+    position: relative;
+    padding: var(--sp-6);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .panel::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto;
+    height: 2px;
+    background: var(--c);
+  }
+
+  .panel[data-empty] {
+    opacity: 0.6;
+  }
+
+  .panel__name {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    font-family: var(--font-ui);
+    font-size: var(--size-lg);
+    font-weight: 620;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .panel__name:hover {
+    color: var(--c);
+  }
+
+  .panel__short {
+    display: inline-grid;
+    place-items: center;
+    min-width: 2.2em;
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+    background: color-mix(in oklab, var(--c) 20%, transparent);
+    color: var(--c);
+    font-size: var(--size-xs);
+    font-weight: 650;
+  }
+
+  .panel__parent {
+    margin: var(--sp-2) 0 0;
+    font-family: var(--font-ui);
+    font-size: var(--size-xs);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  .panel__blurb {
+    margin: var(--sp-3) 0 0;
+    color: var(--text-muted);
+    font-size: 0.9375rem;
+  }
+
+  .figures {
+    display: flex;
+    gap: var(--sp-8);
+    margin: var(--sp-6) 0;
+    padding-block: var(--sp-3);
+    border-block: 1px solid var(--border);
+  }
+
+  .figures dt {
+    font-family: var(--font-ui);
+    font-size: var(--size-xs);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  .figures dd {
+    margin: var(--sp-1) 0 0;
+    font-family: var(--font-ui);
+    font-size: var(--size-lg);
+    font-weight: 620;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .footnote {
+    margin-top: var(--sp-12);
+    font-family: var(--font-ui);
+    font-size: var(--size-sm);
+    color: var(--text-faint);
+  }
+</style>

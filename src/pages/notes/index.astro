@@ -1,0 +1,356 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import DomainBadge from '../../components/DomainBadge.astro';
+import { listDomains } from '../../lib/domains.mjs';
+import { noteUrl } from '../../lib/routes.mjs';
+
+const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort((a, b) =>
+  a.data.title.localeCompare(b.data.title),
+);
+
+const counts = new Map<string, number>();
+for (const n of notes) {
+  const key = n.data.domain ?? '_none';
+  counts.set(key, (counts.get(key) ?? 0) + 1);
+}
+
+const domains = listDomains()
+  .filter((d) => (counts.get(d.id) ?? 0) > 0)
+  .sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0));
+
+// Only tags used more than once are worth a chip; the long tail belongs to search.
+const tagCounts = new Map<string, number>();
+for (const n of notes) for (const t of n.data.tags) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
+const tags = [...tagCounts]
+  .filter(([, c]) => c > 1)
+  .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  .slice(0, 24);
+
+const MASTERY = ['stub', 'learning', 'solid', 'teachable'] as const;
+---
+
+<BaseLayout title="Notes · All Learning Resources">
+  <div class="wrap page">
+    <header class="page__head">
+      <h1 class="page__title">Notes</h1>
+      <p class="page__lede">
+        Everything in the repository. Narrow it down, or press <kbd>Ctrl</kbd>&thinsp;+&thinsp;<kbd
+          >K</kbd
+        > to search the full text.
+      </p>
+    </header>
+
+    <div class="facets">
+      <div class="facet" role="group" aria-label="Filter by domain">
+        <span class="facet__label">Domain</span>
+        <div class="facet__chips">
+          <button class="chip" type="button" data-facet="domain" data-value="all" aria-pressed="true"
+            >All</button
+          >
+          {
+            domains.map((d) => (
+              <button
+                class="chip"
+                type="button"
+                data-facet="domain"
+                data-value={d.id}
+                aria-pressed="false"
+                style={`--c: var(--domain-${d.id})`}
+              >
+                {d.name}
+                <span class="chip__n">{counts.get(d.id)}</span>
+              </button>
+            ))
+          }
+          {
+            (counts.get('_none') ?? 0) > 0 && (
+              <button class="chip" type="button" data-facet="domain" data-value="_none" aria-pressed="false">
+                Unclassified
+                <span class="chip__n">{counts.get('_none')}</span>
+              </button>
+            )
+          }
+        </div>
+      </div>
+
+      {
+        tags.length > 0 && (
+          <div class="facet" role="group" aria-label="Filter by tag">
+            <span class="facet__label">Tag</span>
+            <div class="facet__chips">
+              <button class="chip" type="button" data-facet="tag" data-value="all" aria-pressed="true">
+                Any
+              </button>
+              {tags.map(([t, c]) => (
+                <button class="chip" type="button" data-facet="tag" data-value={t} aria-pressed="false">
+                  {t}
+                  <span class="chip__n">{c}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+      }
+
+      <div class="facet" role="group" aria-label="Filter by confidence">
+        <span class="facet__label">Confidence</span>
+        <div class="facet__chips">
+          <button class="chip" type="button" data-facet="mastery" data-value="all" aria-pressed="true"
+            >Any</button
+          >
+          {
+            MASTERY.map((m) => (
+              <button class="chip" type="button" data-facet="mastery" data-value={m} aria-pressed="false">
+                {m}
+              </button>
+            ))
+          }
+        </div>
+      </div>
+    </div>
+
+    <p class="count"><span data-count>{notes.length}</span> notes</p>
+
+    <ul class="list">
+      {
+        notes.map((n) => (
+          <li
+            class="row"
+            data-domain={n.data.domain ?? '_none'}
+            data-tags={n.data.tags.join('|')}
+            data-mastery={n.data.mastery}
+          >
+            <a class="row__link" href={noteUrl(n)}>
+              <span class="row__main">
+                <span class="row__title">{n.data.title}</span>
+                {n.data.summary && <span class="row__summary">{n.data.summary}</span>}
+              </span>
+              <span class="row__meta">
+                <DomainBadge domain={n.data.domain} compact />
+                <span class="row__mins">{n.data.estMinutes} min</span>
+              </span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    <p class="empty" hidden>Nothing matches that combination.</p>
+  </div>
+</BaseLayout>
+
+<script is:inline>
+  (() => {
+    const rows = [...document.querySelectorAll('.row')];
+    const empty = document.querySelector('.empty');
+    const count = document.querySelector('[data-count]');
+    const active = { domain: 'all', tag: 'all', mastery: 'all' };
+
+    const matches = (row) =>
+      (active.domain === 'all' || row.dataset.domain === active.domain) &&
+      (active.tag === 'all' || row.dataset.tags.split('|').includes(active.tag)) &&
+      (active.mastery === 'all' || row.dataset.mastery === active.mastery);
+
+    const apply = () => {
+      let shown = 0;
+      for (const row of rows) {
+        const ok = matches(row);
+        row.hidden = !ok;
+        if (ok) shown++;
+      }
+      count.textContent = String(shown);
+      empty.hidden = shown > 0;
+    };
+
+    for (const btn of document.querySelectorAll('.chip')) {
+      btn.addEventListener('click', () => {
+        const { facet, value } = btn.dataset;
+        active[facet] = value;
+        for (const peer of document.querySelectorAll(`.chip[data-facet="${facet}"]`)) {
+          peer.setAttribute('aria-pressed', String(peer === btn));
+        }
+        apply();
+      });
+    }
+  })();
+</script>
+
+<style>
+  .page {
+    padding-block: var(--sp-16) var(--sp-24);
+  }
+
+  .page__head {
+    margin-bottom: var(--sp-8);
+  }
+
+  .page__title {
+    font-size: var(--size-2xl);
+    margin-bottom: var(--sp-3);
+  }
+
+  .page__lede {
+    max-width: var(--measure);
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  kbd {
+    font-family: var(--font-ui);
+    font-size: 0.8em;
+    border: 1px solid var(--border-strong);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 0.05em 0.4em;
+  }
+
+  .facets {
+    display: grid;
+    gap: var(--sp-3);
+    padding: var(--sp-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+  }
+
+  .facet {
+    display: grid;
+    grid-template-columns: 6rem 1fr;
+    align-items: start;
+    gap: var(--sp-3);
+  }
+
+  .facet__label {
+    font-family: var(--font-ui);
+    font-size: var(--size-xs);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    padding-top: 0.35rem;
+  }
+
+  .facet__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    font-family: var(--font-ui);
+    font-size: var(--size-sm);
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.15rem var(--sp-3);
+    cursor: pointer;
+    transition: color var(--transition), border-color var(--transition), background var(--transition);
+  }
+
+  .chip:hover {
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+
+  .chip[aria-pressed='true'] {
+    color: var(--c, var(--text));
+    border-color: color-mix(in oklab, var(--c, var(--text)) 50%, transparent);
+    background: color-mix(in oklab, var(--c, var(--text)) 14%, transparent);
+  }
+
+  .chip__n {
+    font-variant-numeric: tabular-nums;
+    font-size: var(--size-xs);
+    color: var(--text-faint);
+  }
+
+  .count {
+    margin: var(--sp-8) 0 var(--sp-2);
+    font-family: var(--font-ui);
+    font-size: var(--size-xs);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .row {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .row__link {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-8);
+    padding: var(--sp-4) var(--sp-3);
+    text-decoration: none;
+    color: inherit;
+    transition: background var(--transition);
+  }
+
+  .row__link:hover {
+    background: var(--surface);
+  }
+
+  .row__main {
+    display: grid;
+    gap: var(--sp-1);
+    min-width: 0;
+  }
+
+  .row__title {
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-size: var(--size-base);
+  }
+
+  .row__summary {
+    color: var(--text-muted);
+    font-size: 0.9375rem;
+    line-height: 1.55;
+    max-width: 60ch;
+  }
+
+  .row__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    flex: none;
+  }
+
+  .row__mins {
+    font-family: var(--font-ui);
+    font-size: var(--size-xs);
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .empty {
+    color: var(--text-faint);
+    font-family: var(--font-ui);
+    padding-top: var(--sp-8);
+  }
+
+  @media (max-width: 44rem) {
+    .facet {
+      grid-template-columns: 1fr;
+      gap: var(--sp-2);
+    }
+    .row__link {
+      flex-direction: column;
+      gap: var(--sp-3);
+    }
+  }
+</style>

@@ -1,0 +1,56 @@
+---
+import '../styles/global.css';
+import SiteHeader from '../components/SiteHeader.astro';
+import { domainColorCss } from '../lib/domain-colors.mjs';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'A knowledge repository for database engineering and data science.' } =
+  Astro.props;
+---
+
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&family=Literata:opsz,wght@7..72,400..600&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
+
+    <style set:html={domainColorCss()}></style>
+
+    {/* Pagefind Component UI. These files are emitted by the Pagefind step at the
+        end of `astro build`, so search is inert until the site has been built once. */}
+    <link rel="stylesheet" href="/pagefind/pagefind-component-ui.css" />
+    <script src="/pagefind/pagefind-component-ui.js" type="module" is:inline></script>
+
+    <script is:inline>
+      // Runs before first paint so the theme never flashes.
+      try {
+        const stored = localStorage.getItem('alr.theme');
+        if (stored === 'light' || stored === 'dark') {
+          document.documentElement.dataset.theme = stored;
+        }
+      } catch {}
+    </script>
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <SiteHeader />
+    <main id="main">
+      <slot />
+    </main>
+  </body>
+</html>

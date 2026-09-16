@@ -1,0 +1,291 @@
+---
+import type { MarkdownHeading } from 'astro';
+import type { CollectionEntry } from 'astro:content';
+import BaseLayout from './BaseLayout.astro';
+import DomainNav from '../components/DomainNav.astro';
+import { noteSlug } from '../lib/routes.mjs';
+import TableOfContents from '../components/TableOfContents.astro';
+import Backlinks from '../components/Backlinks.astro';
+import DomainBadge from '../components/DomainBadge.astro';
+
+interface Props {
+  note: CollectionEntry<'notes'>;
+  headings: MarkdownHeading[];
+  backlinks: Parameters<typeof Backlinks>[0]['backlinks'];
+}
+
+const { note, headings, backlinks } = Astro.props;
+const { data } = note;
+
+const updated = data.updated?.toLocaleDateString('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+});
+
+const MASTERY_COPY: Record<string, string> = {
+  stub: 'Stub — a placeholder, not yet trustworthy',
+  learning: 'Learning — being worked through now',
+  solid: 'Solid — understood and verified',
+  teachable: 'Teachable — could explain this from scratch',
+};
+---
+
+<BaseLayout title={`${data.title} · All Learning Resources`} description={data.summary}>
+  <div class="shell wrap">
+    <aside class="shell__nav" aria-label="Note navigation">
+      <div class="sticky">
+        <DomainNav current={noteSlug(note)} domain={data.domain} />
+      </div>
+    </aside>
+
+    <article
+      class="shell__main"
+      data-pagefind-body
+      data-pagefind-filter={`domain:${data.domain ?? 'unclassified'}`}
+    >
+      <span data-pagefind-filter={`mastery:${data.mastery}`} hidden></span>
+      {data.tags.map((t) => <span data-pagefind-filter="tag" hidden>{t}</span>)}
+
+      <header class="note-head">
+        <div class="note-head__meta">
+          <DomainBadge domain={data.domain} />
+          <span class="dot" aria-hidden="true">·</span>
+          <span data-pagefind-ignore>{data.estMinutes} min read</span>
+          {
+            updated && (
+              <>
+                <span class="dot" aria-hidden="true">
+                  ·
+                </span>
+                <span data-pagefind-ignore>Updated {updated}</span>
+              </>
+            )
+          }
+        </div>
+
+        <h1 class="note-head__title">{data.title}</h1>
+        {data.summary && <p class="note-head__summary">{data.summary}</p>}
+        {data.via && <p class="note-head__via">Found via {data.via}</p>}
+
+        <div class="note-head__mastery" title={MASTERY_COPY[data.mastery]}>
+          <span class="bar" data-mastery={data.mastery} aria-hidden="true">
+            <i></i><i></i><i></i><i></i>
+          </span>
+          <span>{MASTERY_COPY[data.mastery]}</span>
+        </div>
+      </header>
+
+      <div class="prose">
+        <slot />
+      </div>
+
+      {
+        data.sources.length > 0 && (
+          <section class="sources" aria-labelledby="sources-title" data-pagefind-ignore>
+            <h2 class="sources__title" id="sources-title">
+              Sources
+            </h2>
+            <ol class="sources__list">
+              {data.sources.map((s) => (
+                <li>
+                  <a href={s.url} rel="noreferrer noopener" target="_blank">
+                    {s.title}
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )
+      }
+
+      <Backlinks backlinks={backlinks} />
+    </article>
+
+    <aside class="shell__rail" aria-label="Page contents" data-pagefind-ignore>
+      <div class="sticky">
+        <TableOfContents headings={headings} />
+
+        {
+          data.tags.length > 0 && (
+            <div class="tags">
+              {data.tags.map((t) => (
+                <span class="tag">{t}</span>
+              ))}
+            </div>
+          )
+        }
+      </div>
+    </aside>
+  </div>
+</BaseLayout>
+
+<style>
+  .shell {
+    display: grid;
+    grid-template-columns: var(--sidebar) minmax(0, 1fr) var(--rail);
+    gap: var(--sp-12);
+    align-items: start;
+    padding-block: var(--sp-12) var(--sp-24);
+  }
+
+  .sticky {
+    position: sticky;
+    top: 5rem;
+    max-height: calc(100vh - 7rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+
+  .shell__main {
+    min-width: 0;
+  }
+
+  /* ---------- Note header ---------- */
+
+  .note-head {
+    margin-bottom: var(--sp-12);
+  }
+
+  .note-head__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    flex-wrap: wrap;
+    font-family: var(--font-ui);
+    font-size: var(--size-xs);
+    color: var(--text-faint);
+    margin-bottom: var(--sp-4);
+  }
+
+  .dot {
+    color: var(--border-strong);
+  }
+
+  .note-head__title {
+    font-size: var(--size-3xl);
+    margin-bottom: var(--sp-4);
+  }
+
+  .note-head__summary {
+    max-width: var(--measure);
+    margin: 0 0 var(--sp-6);
+    font-size: var(--size-lg);
+    color: var(--text-muted);
+    text-wrap: pretty;
+  }
+
+  .note-head__via {
+    max-width: var(--measure);
+    margin: calc(var(--sp-6) * -1) 0 var(--sp-6);
+    font-family: var(--font-ui);
+    font-size: var(--size-sm);
+    color: var(--text-faint);
+  }
+
+  .note-head__mastery {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-3);
+    font-family: var(--font-ui);
+    font-size: var(--size-xs);
+    color: var(--text-faint);
+  }
+
+  .bar {
+    display: inline-flex;
+    gap: 3px;
+  }
+
+  .bar i {
+    width: 1.1rem;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--border-strong);
+  }
+
+  .bar[data-mastery='learning'] i:nth-child(-n + 2),
+  .bar[data-mastery='solid'] i:nth-child(-n + 3),
+  .bar[data-mastery='teachable'] i {
+    background: var(--accent);
+  }
+
+  .bar[data-mastery='stub'] i:first-child {
+    background: var(--text-faint);
+  }
+
+  /* ---------- Sources ---------- */
+
+  .sources {
+    margin-top: var(--sp-16);
+    padding: var(--sp-6);
+    max-width: var(--measure);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+  }
+
+  .sources__title {
+    font-size: var(--size-xs);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: var(--sp-3);
+  }
+
+  .sources__list {
+    margin: 0;
+    padding-left: var(--sp-6);
+    font-family: var(--font-ui);
+    font-size: var(--size-sm);
+    display: grid;
+    gap: var(--sp-2);
+  }
+
+  .sources__list li::marker {
+    color: var(--text-faint);
+  }
+
+  /* ---------- Tags ---------- */
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    margin-top: var(--sp-8);
+    padding-top: var(--sp-6);
+    border-top: 1px solid var(--border);
+  }
+
+  .tag {
+    font-family: var(--font-ui);
+    font-size: var(--size-xs);
+    color: var(--text-faint);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.1rem var(--sp-2);
+  }
+
+  /* ---------- Responsive ---------- */
+
+  @media (max-width: 78rem) {
+    .shell {
+      grid-template-columns: var(--sidebar) minmax(0, 1fr);
+    }
+    .shell__rail {
+      display: none;
+    }
+  }
+
+  @media (max-width: 56rem) {
+    .shell {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--sp-8);
+    }
+    .shell__nav {
+      display: none;
+    }
+  }
+</style>

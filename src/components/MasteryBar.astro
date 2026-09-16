@@ -1,0 +1,85 @@
+---
+const MASTERY = ['stub', 'learning', 'solid', 'teachable'] as const;
+
+interface Props {
+  notes: { data: { mastery: (typeof MASTERY)[number] } }[];
+  showLegend?: boolean;
+}
+
+const { notes, showLegend = true } = Astro.props;
+
+const bands = MASTERY.map((m) => ({ m, n: notes.filter((x) => x.data.mastery === m).length }));
+const label = (s: string) => s.replace(/^\w/, (c) => c.toUpperCase());
+---
+
+<div class="mastery">
+  <div class="bar" role="img" aria-label={bands.map((b) => `${b.n} ${b.m}`).join(', ')}>
+    {bands.map((b) => b.n > 0 && <span data-m={b.m} style={`flex:${b.n}`} />)}
+  </div>
+
+  {
+    showLegend && (
+      <ul class="legend">
+        {bands.map((b) => (
+          <li>
+            <i data-m={b.m} /> {label(b.m)} <b>{b.n}</b>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+</div>
+
+<style>
+  .bar {
+    display: flex;
+    gap: 2px;
+    height: 0.5rem;
+  }
+
+  .bar span {
+    border-radius: 2px;
+  }
+
+  [data-m='stub'] {
+    background: var(--border-strong);
+  }
+  [data-m='learning'] {
+    background: color-mix(in oklab, var(--c, var(--accent)) 45%, var(--border-strong));
+  }
+  [data-m='solid'] {
+    background: color-mix(in oklab, var(--c, var(--accent)) 75%, transparent);
+  }
+  [data-m='teachable'] {
+    background: var(--c, var(--accent));
+  }
+
+  .legend {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-4);
+    margin: var(--sp-3) 0 0;
+    padding: 0;
+    font-family: var(--font-ui);
+    font-size: var(--size-xs);
+    color: var(--text-muted);
+  }
+
+  .legend li {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+  }
+
+  .legend i {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 2px;
+  }
+
+  .legend b {
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+</style>

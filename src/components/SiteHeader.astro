@@ -1,0 +1,193 @@
+---
+const path = Astro.url.pathname;
+const links = [
+  { href: '/notes/', label: 'Notes' },
+  { href: '/domains/', label: 'Domains' },
+  { href: '/inbox/', label: 'Inbox' },
+];
+---
+
+<header class="hdr">
+  <div class="wrap hdr__inner">
+    <a class="brand" href="/">
+      <span class="brand__mark" aria-hidden="true"></span>
+      <span class="brand__text">All&nbsp;Learning&nbsp;Resources</span>
+    </a>
+
+    <nav class="nav" aria-label="Primary">
+      {
+        links.map((l) => (
+          <a
+            href={l.href}
+            class="nav__link"
+            aria-current={path.startsWith(l.href) ? 'page' : undefined}
+          >
+            {l.label}
+          </a>
+        ))
+      }
+    </nav>
+
+    {/* Binds mod+k at document level by default — no custom JS needed. */}
+    <pagefind-modal-trigger class="search" placeholder="Search"></pagefind-modal-trigger>
+
+    <button class="theme" type="button" aria-label="Toggle colour theme" data-theme-toggle>
+      <svg class="theme__icon theme__icon--sun" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="4.2"></circle>
+        <path d="M12 2.6v2.4M12 19v2.4M2.6 12h2.4M19 12h2.4M5.4 5.4l1.7 1.7M16.9 16.9l1.7 1.7M18.6 5.4l-1.7 1.7M7.1 16.9l-1.7 1.7"></path>
+      </svg>
+      <svg class="theme__icon theme__icon--moon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M20 14.2A8.2 8.2 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"></path>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<pagefind-modal>
+  <pagefind-config faceted preload></pagefind-config>
+  <pagefind-input placeholder="Search every note"></pagefind-input>
+  <pagefind-filter-dropdown filter="domain" label="Domain"></pagefind-filter-dropdown>
+  <pagefind-summary></pagefind-summary>
+  <pagefind-results></pagefind-results>
+  <pagefind-keyboard-hints></pagefind-keyboard-hints>
+</pagefind-modal>
+
+<script is:inline>
+  document.querySelector('[data-theme-toggle]')?.addEventListener('click', () => {
+    const root = document.documentElement;
+    const next = root.dataset.theme === 'light' ? 'dark' : 'light';
+    root.dataset.theme = next;
+    try {
+      localStorage.setItem('alr.theme', next);
+    } catch {}
+  });
+</script>
+
+<style>
+  .hdr {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: color-mix(in oklab, var(--ground) 82%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .hdr__inner {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    height: 3.5rem;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    color: var(--text);
+    text-decoration: none;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-size: var(--size-sm);
+    letter-spacing: -0.01em;
+    margin-right: auto;
+  }
+
+  /*
+    Many domains, one body of knowledge. The mark is a full spectrum rather than
+    the two fixed hues it used to be.
+  */
+  .brand__mark {
+    width: 1.1rem;
+    height: 1.1rem;
+    flex: none;
+    border-radius: 50%;
+    background: conic-gradient(
+      from 210deg,
+      oklch(0.78 0.13 10),
+      oklch(0.78 0.13 80),
+      oklch(0.78 0.13 155),
+      oklch(0.78 0.13 215),
+      oklch(0.78 0.13 288),
+      oklch(0.78 0.13 350),
+      oklch(0.78 0.13 10)
+    );
+  }
+
+  .nav {
+    display: flex;
+    gap: var(--sp-1);
+  }
+
+  .nav__link {
+    font-family: var(--font-ui);
+    font-size: var(--size-sm);
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: var(--sp-1) var(--sp-3);
+    border-radius: var(--radius);
+    transition: color var(--transition), background var(--transition);
+  }
+
+  .nav__link:hover,
+  .nav__link[aria-current='page'] {
+    color: var(--text);
+    background: var(--surface-raised);
+  }
+
+  .search {
+    --pagefind-ui-primary: var(--accent);
+    --pagefind-ui-text: var(--text-muted);
+    --pagefind-ui-background: var(--surface);
+    --pagefind-ui-border: var(--border);
+    --pagefind-ui-font: var(--font-ui);
+    font-size: var(--size-sm);
+  }
+
+  .theme {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    flex: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color var(--transition), border-color var(--transition);
+  }
+
+  .theme:hover {
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+
+  .theme__icon {
+    grid-area: 1 / 1;
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+  }
+
+  .theme__icon--sun {
+    display: none;
+  }
+
+  :root[data-theme='light'] .theme__icon--sun {
+    display: block;
+  }
+
+  :root[data-theme='light'] .theme__icon--moon {
+    display: none;
+  }
+
+  @media (max-width: 46rem) {
+    .brand__text {
+      display: none;
+    }
+  }
+</style>

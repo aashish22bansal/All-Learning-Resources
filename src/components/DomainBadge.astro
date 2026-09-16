@@ -1,0 +1,70 @@
+---
+import { getDomain } from '../lib/domains.mjs';
+
+interface Props {
+  domain?: string | null;
+  /** Short code only — for dense rows where the full name would crowd. */
+  compact?: boolean;
+}
+
+const { domain, compact = false } = Astro.props;
+const entry = domain ? getDomain(domain) : null;
+---
+
+{
+  entry ? (
+    <span class="badge" style={`--c: var(--domain-${entry.id})`} title={entry.name}>
+      <span class="badge__short">{entry.short}</span>
+      {!compact && <span class="badge__name">{entry.name}</span>}
+    </span>
+  ) : (
+    <span class="badge badge--none" title="Not yet classified">
+      <span class="badge__short">?</span>
+      {!compact && <span class="badge__name">Unclassified</span>}
+    </span>
+  )
+}
+
+<style>
+  /*
+    The short code, not the colour, is what identifies a domain. Hue stops
+    separating reliably somewhere past a dozen domains, so colour is atmosphere
+    and the text carries the meaning.
+  */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    font-family: var(--font-ui);
+    font-size: var(--size-xs);
+    font-weight: 500;
+    color: var(--c);
+    border: 1px solid color-mix(in oklab, var(--c) 30%, transparent);
+    background: color-mix(in oklab, var(--c) 12%, transparent);
+    border-radius: 999px;
+    padding: 0.15rem var(--sp-2) 0.15rem var(--sp-1);
+    white-space: nowrap;
+    line-height: 1.5;
+  }
+
+  .badge--none {
+    --c: var(--text-faint);
+    border-style: dashed;
+  }
+
+  .badge__short {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.6em;
+    padding-inline: 0.3em;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--c) 22%, transparent);
+    font-size: 0.9em;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+  }
+
+  .badge__name {
+    padding-right: var(--sp-1);
+  }
+</style>

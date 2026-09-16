@@ -1,0 +1,407 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import MasteryBar from '../../components/MasteryBar.astro';
+import { listDomains, getDomain } from '../../lib/domains.mjs';
+import { getLinkGraph } from '../../lib/links.mjs';
+import { noteSlug, noteUrl } from '../../lib/routes.mjs';
+
+export async function getStaticPaths() {
+  return listDomains().map((d) => ({ params: { id: d.id }, props: { domain: d } }));
+}
+
+const { domain } = Astro.props;
+const all = await getCollection('notes', ({ data }) => !data.draft);
+const notes = all.filter((n) => n.data.domain === domain.id);
+
+const hubs = notes.filter((n) => n.data.hub);
+const rest = notes.filter((n) => !n.data.hub).sort((a, b) => a.data.title.localeCompare(b.data.title));
+
+const children = listDomains().filter((d) => d.parent === domain.id);
+const parent = domain.parent ? getDomain(domain.parent) : null;
+
+const tagCounts = new Map<string, number>();
+for (const n of notes) for (const t of n.data.tags) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
+const tags = [...tagCounts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+
+// Most-linked notes in this domain: a cheap, honest proxy for "what this area
+// is actually built around".
+const { edges } = getLinkGraph();
+const inbound = new Map<string, number>();
+for (const e of edges) inbound.set(e.target, (inbound.get(e.target) ?? 0) + 1);
+
+const central = [...notes]
+  .map((n) => ({ note: n, links: inbound.get(noteSlug(n)) ?? 0 }))
+  .filter((x) => x.links > 0)
+  .sort((a, b) => b.links - a.links)
+  .slice(0, 5);
+
+const minutes = notes.reduce((s, n) => s + n.data.estMinutes, 0);
+---
+
+<BaseLayout title={`${domain.name} · All Learning Resources`} description={domain.blurb}>
+  <div class="wrap page" style={`--c: var(--domain-${domain.id})`}>
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/domains/">Domains</a>
+      {parent && <><span aria-hidden="true">/</span><a href={`/domains/${parent.id}/`}>{parent.name}</a></>}
+      <span aria-hidden="true">/</span>
+      <span>{domain.name}</span>
+    </nav>
+
+    <header class="head">
+      <span class="head__short">{domain.short}</span>
+      <h1 class="head__title">{domain.name}</h1>
+      {domain.blurb && <p class="head__blurb">{domain.blurb}</p>}
+      <p class="head__figures">
+        {notes.length} note{notes.length === 1 ? '' : 's'} · {minutes} min
+      </p>
+      {notes.length > 0 && <MasteryBar notes={notes} />}
+    </header>
+
+    {
+      children.length > 0 && (
+        <p class="children">
+          Narrower:
+          {children.map((c) => (
+            <a href={`/domains/${c.id}/`} style={`--c: var(--domain-${c.id})`}>
+              {c.name}
+            </a>
+          ))}
+        </p>
+      )
+    }
+
+    {
+      notes.length === 0 ? (
+        <p class="empty">
+          Nothing here yet. <code>npm run new -- "Some title" --domain {domain.id}</code>
+        </p>
+      ) : (
+        <>
+          {hubs.length > 0 && (
+            <section class="section" aria-labelledby="hubs-title">
+              <h2 class="section__title" id="hubs-title">
+                Start here
+              </h2>
+              <ul class="cards">
+                {hubs.map((n) => (
+                  <li>
+                    <a class="card card--hub" href={noteUrl(n)}>
+                      <span class="card__title">{n.data.title}</span>
+                      {n.data.summary && <span class="card__summary">{n.data.summary}</span>}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {central.length > 0 && (
+            <section class="section" aria-labelledby="central-title">
+              <h2 class="section__title" id="central-title">
+                Most linked to
+              </h2>
+              <ol class="central">
+                {central.map((c) => (
+                  <li>
+                    <a href={noteUrl(c.note)}>{c.note.data.title}</a>
+                    <span class="central__n">
+                      {c.links} link{c.links === 1 ? '' : 's'} in
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
+          <section class="section" aria-labelledby="all-title">
+            <h2 class="section__title" id="all-title">
+              All notes
+            </h2>
+            <ul class="list">
+              {rest.map((n) => (
+                <li>
+                  <a class="row" href={noteUrl(n)}>
+                    <span class="row__main">
+                      <span class="row__title">{n.data.title}</span>
+                      {n.data.summary && <span class="row__summary">{n.data.summary}</span>}
+                    </span>
+                    <span class="row__mins">{n.data.estMinutes} min</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {tags.length > 0 && (
+            <section class="section" aria-labelledby="tags-title">
+              <h2 class="section__title" id="tags-title">
+                Tags in this domain
+              </h2>
+              <ul class="tags">
+                {tags.map(([t, c]) => (
+                  <li class="tag">
+                    {t} <span>{c}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
+      )
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .page {
+    padding-block: var(--sp-8) var(--sp-24);
+    max-width: 58rem;
+  }
+
+  .crumbs {
+    display: flex;
+    gap: var(--sp-2);
+    font-family: var(--font-ui);
+    font-size: var(--size-xs);
+    color: var(--text-faint);
+    margin-bottom: var(--sp-8);
+  }
+
+  .crumbs a {
+    color: var(--text-faint);
+    text-decoration: none;
+  }
+
+  .crumbs a:hover {
+    color: var(--text);
+  }
+
+  .head {
+    padding-bottom: var(--sp-8);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .head__short {
+    display: inline-grid;
+    place-items: center;
+    min-width: 2.4em;
+    padding: 0.15em 0.45em;
+    border-radius: 5px;
+    background: color-mix(in oklab, var(--c) 20%, transparent);
+    color: var(--c);
+    font-family: var(--font-ui);
+    font-size: var(--size-sm);
+    font-weight: 650;
+    margin-bottom: var(--sp-4);
+  }
+
+  .head__title {
+    font-size: var(--size-2xl);
+    margin-bottom: var(--sp-3);
+  }
+
+  .head__blurb {
+    max-width: var(--measure);
+    margin: 0 0 var(--sp-4);
+    color: var(--text-muted);
+    font-size: var(--size-lg);
+  }
+
+  .head__figures {
+    margin: 0 0 var(--sp-6);
+    font-family: var(--font-ui);
+    font-size: var(--size-xs);
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .children {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-3);
+    margin: var(--sp-6) 0 0;
+    font-family: var(--font-ui);
+    font-size: var(--size-sm);
+    color: var(--text-faint);
+  }
+
+  .children a {
+    color: var(--c);
+    text-decoration: none;
+    border: 1px solid color-mix(in oklab, var(--c) 30%, transparent);
+    background: color-mix(in oklab, var(--c) 10%, transparent);
+    border-radius: 999px;
+    padding: 0.1rem var(--sp-3);
+  }
+
+  .section {
+    margin-top: var(--sp-12);
+  }
+
+  .section__title {
+    font-size: var(--size-xs);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: var(--sp-4);
+  }
+
+  .cards {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--sp-3);
+  }
+
+  .card {
+    display: grid;
+    gap: var(--sp-2);
+    padding: var(--sp-5, var(--sp-4));
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    text-decoration: none;
+    color: inherit;
+    transition: border-color var(--transition);
+  }
+
+  .card--hub {
+    border-left: 2px solid var(--c);
+  }
+
+  .card:hover {
+    border-color: var(--border-strong);
+  }
+
+  .card__title {
+    font-family: var(--font-ui);
+    font-weight: 600;
+  }
+
+  .card__summary {
+    color: var(--text-muted);
+    font-size: 0.9375rem;
+  }
+
+  .central {
+    margin: 0;
+    padding-left: var(--sp-6);
+    font-family: var(--font-ui);
+    font-size: var(--size-sm);
+    display: grid;
+    gap: var(--sp-2);
+  }
+
+  .central li::marker {
+    color: var(--text-faint);
+  }
+
+  .central a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .central a:hover {
+    color: var(--c);
+  }
+
+  .central__n {
+    color: var(--text-faint);
+    font-size: var(--size-xs);
+    margin-left: var(--sp-3);
+  }
+
+  .list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .list li {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-6);
+    padding: var(--sp-3);
+    text-decoration: none;
+    color: inherit;
+    transition: background var(--transition);
+  }
+
+  .row:hover {
+    background: var(--surface);
+  }
+
+  .row__main {
+    display: grid;
+    gap: var(--sp-1);
+    min-width: 0;
+  }
+
+  .row__title {
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-size: var(--size-sm);
+  }
+
+  .row__summary {
+    color: var(--text-muted);
+    font-size: 0.9375rem;
+    max-width: 60ch;
+  }
+
+  .row__mins {
+    flex: none;
+    font-family: var(--font-ui);
+    font-size: var(--size-xs);
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tags {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    margin: 0;
+    padding: 0;
+  }
+
+  .tag {
+    font-family: var(--font-ui);
+    font-size: var(--size-xs);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.1rem var(--sp-2);
+  }
+
+  .tag span {
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .empty {
+    margin-top: var(--sp-12);
+    color: var(--text-faint);
+    font-family: var(--font-ui);
+    font-size: var(--size-sm);
+  }
+
+  .empty code {
+    color: var(--text);
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.15em 0.4em;
+  }
+</style>
