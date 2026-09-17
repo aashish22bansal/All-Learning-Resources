@@ -13,7 +13,8 @@ Notes carry one **domain** from an open registry plus free-form tags. Every note
 | `npm run build` | Integrity report, then build to `dist/` |
 | `npm run rebuild` | Clear caches and build — **after any change under `src/lib/`** |
 | `npm run verify` | Rebuild, then crawl `dist/` for dead internal links |
-| `npm run tidy` | Move notes so their folder matches their `domain` |
+| `npm run tidy` | Move notes so their folder matches their `domain` (`--dry` to preview) |
+| `npm run check:colors` | Assert every generated domain colour is inside sRGB |
 | `npm run check:links` | Integrity report that fails on warnings (for CI) |
 | `npm run preview` | Serve `dist/` |
 
@@ -51,22 +52,29 @@ updated: 2026-09-17
 
 ## Domains
 
-Add a line to `src/content/domains.yaml` and you have a new domain — with a colour, a page, a filter and schema validation. It is never a code change.
+Add a line to `src/content/domains.yaml` and you have a new domain — with a colour, a page, a filter, a folder and schema validation. It is never a code change.
 
 ```yaml
 robotics:
   name: Robotics
   short: ROB
   blurb: Kinematics, control, perception.
+  parent: systems      # optional, one level
 ```
 
-Keep them coarse, roughly 8–20. Tags do the fine-grained work: `agents` and `rag` are tags under `llms`, not domains of their own. `/inbox/` flags domains holding fewer than three notes.
+A domain may have a `parent`, and one level only. A child's notes live inside the parent's folder, so `domain: hadoop` files under `data-engineering/hadoop/`, and the parent's page rolls up everything beneath it.
 
-Colours are generated, not chosen — each domain takes the widest unused arc of the hue circle, at fixed lightness and chroma per theme. Pin `hue:` to make one permanent. **Colour stops being a reliable identifier somewhere past a dozen domains**, which is why every domain has a `short` code: the text carries the identity, the colour is atmosphere.
+Tags do the fine-grained work: `rag`, `jvm` and `indexing` are tags, not domains. `/inbox/` flags domains holding fewer than three notes.
+
+### Colour
+
+Hue identifies the **family**, lightness identifies the **member**. Every `data-engineering` child is the same blue at a different weight; every `programming` child is the same green. Chroma is clamped to what sRGB can actually display at that lightness and hue — asserting a constant silently hands the browser an out-of-gamut colour to map however it likes, which is a bug this repository shipped once already.
+
+`npm run check:colors` enforces both: everything in gamut, and families large enough to still separate. **A family holds a root plus about five children.** `data-engineering` and `programming` are both at that limit, which is why every domain carries a `short` code — past a dozen or so domains the text carries the identity and the colour is only atmosphere.
 
 ## Filing and URLs
 
-Notes live in `src/content/notes/<domain>/<slug>.md`, but **the URL is the filename, not the path**. `notes/llms/context-engineering.md` serves at `/notes/context-engineering/`.
+Notes live in the folder their domain's parent chain describes — `src/content/notes/data-engineering/hadoop/spark-shuffle.md` — but **the URL is the filename, not the path**, so that note serves at `/notes/spark-shuffle/`.
 
 So reclassifying a note is: change its `domain`, run `npm run tidy`. The file moves, the URL does not, and no wikilink breaks. Frontmatter is the source of truth; the folder is derived from it, and drift is reported.
 
@@ -90,4 +98,6 @@ Astro 7 with the Sätteri markdown processor, a custom design system, Pagefind 1
 
 ## Status
 
-Foundations complete: open taxonomy, capture pipeline, search, inbox, domain pages, wikilinks with backlinks. Still to come — the force-directed graph, the progress and retention system, learning paths, KaTeX and Mermaid, and runnable SQL/Python cells.
+Foundations complete: a hierarchical open taxonomy, capture pipeline, search, inbox, domain pages, wikilinks with backlinks, and 22 notes across 24 domains.
+
+Still to come — the force-directed graph, the progress and retention system, learning paths, KaTeX and Mermaid, and runnable SQL/Python cells.

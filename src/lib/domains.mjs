@@ -50,3 +50,49 @@ export function getDomain(id) {
 export function listDomains() {
   return DOMAINS;
 }
+
+export function childrenOf(id) {
+  return DOMAINS.filter((d) => d.parent === id);
+}
+
+/** The root of a domain's family — itself, if it has no parent. */
+export function rootOf(id) {
+  const d = byId.get(id);
+  if (!d) return null;
+  return d.parent ?? d.id;
+}
+
+/**
+ * The directory a note of this domain belongs in, relative to notes/.
+ *
+ * A child's notes live inside its parent's folder, so the tree on disk mirrors
+ * the registry: `hadoop` → "data-engineering/hadoop", `databases` → "databases".
+ */
+export function domainPath(id) {
+  const chain = [];
+  const seen = new Set();
+  let cur = byId.get(id);
+  if (!cur) return null;
+
+  while (cur) {
+    if (seen.has(cur.id)) {
+      throw new Error(`domains.yaml: parent cycle involving "${cur.id}".`);
+    }
+    seen.add(cur.id);
+    chain.unshift(cur.id);
+    cur = cur.parent ? byId.get(cur.parent) : null;
+  }
+
+  return chain.join('/');
+}
+
+// Fail at import rather than at first render: a cycle would otherwise hang or
+// mis-file notes, and a grandchild would break the two-level folder contract.
+for (const d of DOMAINS) {
+  const depth = domainPath(d.id).split('/').length;
+  if (depth > 2) {
+    throw new Error(
+      `domains.yaml: "${d.id}" nests ${depth} levels deep. Domains may have a parent, but not a grandparent.`,
+    );
+  }
+}

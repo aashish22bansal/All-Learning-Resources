@@ -2,15 +2,22 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import MasteryBar from '../../components/MasteryBar.astro';
-import { listDomains } from '../../lib/domains.mjs';
+import { listDomains, childrenOf } from '../../lib/domains.mjs';
 
 const notes = await getCollection('notes', ({ data }) => !data.draft);
 
+// Grouped by family rather than flat: two dozen equal cards scatters children
+// away from the parent they belong to.
+const own = (id: string) => notes.filter((n) => n.data.domain === id);
+
 const domains = listDomains()
+  .filter((d) => !d.parent)
   .map((d) => {
-    const items = notes.filter((n) => n.data.domain === d.id);
+    const kids = childrenOf(d.id).map((c) => ({ ...c, items: own(c.id) }));
+    const items = [...own(d.id), ...kids.flatMap((k) => k.items)];
     return {
       ...d,
+      kids,
       items,
       minutes: items.reduce((s, n) => s + n.data.estMinutes, 0),
     };
@@ -38,7 +45,6 @@ const unclassified = notes.filter((n) => !n.data.domain).length;
                 <span class="panel__short">{d.short}</span>
                 {d.name}
               </a>
-              {d.parent && <p class="panel__parent">within {d.parent.replace(/-/g, ' ')}</p>}
               <p class="panel__blurb">{d.blurb}</p>
             </header>
 
@@ -54,6 +60,20 @@ const unclassified = notes.filter((n) => !n.data.domain).length;
             </dl>
 
             {d.items.length > 0 && <MasteryBar notes={d.items} />}
+
+            {d.kids.length > 0 && (
+              <ul class="kids">
+                {d.kids.map((k) => (
+                  <li>
+                    <a href={`/domains/${k.id}/`} style={`--c: var(--domain-${k.id})`}>
+                      <span class="kids__short">{k.short}</span>
+                      <span class="kids__name">{k.name}</span>
+                      <span class="kids__n">{k.items.length}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         ))
       }
@@ -177,6 +197,52 @@ const unclassified = notes.filter((n) => !n.data.domain).length;
     font-size: var(--size-lg);
     font-weight: 620;
     font-variant-numeric: tabular-nums;
+  }
+
+  .kids {
+    list-style: none;
+    margin: var(--sp-6) 0 0;
+    padding: var(--sp-4) 0 0;
+    border-top: 1px solid var(--border);
+    display: grid;
+    gap: 2px;
+  }
+
+  .kids a {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-1) var(--sp-2);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    text-decoration: none;
+    font-family: var(--font-ui);
+    font-size: var(--size-sm);
+    transition: color var(--transition), background var(--transition);
+  }
+
+  .kids a:hover {
+    color: var(--text);
+    background: var(--surface-raised);
+  }
+
+  .kids__short {
+    display: inline-grid;
+    place-items: center;
+    min-width: 2.4em;
+    padding: 0.05em 0.3em;
+    border-radius: 3px;
+    background: color-mix(in oklab, var(--c) 20%, transparent);
+    color: var(--c);
+    font-size: var(--size-xs);
+    font-weight: 650;
+  }
+
+  .kids__n {
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+    font-size: var(--size-xs);
+    color: var(--text-faint);
   }
 
   .footnote {

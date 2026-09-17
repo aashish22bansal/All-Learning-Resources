@@ -61,7 +61,7 @@ const unclassified = counts.get('_none') ?? 0;
             >
               <span class="switch__short">{d.short}</span>
               {d.name}
-              <span class="switch__count">{counts.get(d.id) ?? 0}</span>
+              <span class="switch__count">{total(d)}</span>
             </a>
             {childrenOf(d.id).length > 0 && (
               <ul class="switch__sub">
@@ -170,6 +170,13 @@ const unclassified = counts.get('_none') ?? 0;
 
   .switch[open] .switch__chev {
     transform: rotate(180deg);
+  }
+
+  .switch__list {
+    max-height: 60vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
   }
 
   .switch__list,

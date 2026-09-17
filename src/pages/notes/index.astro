@@ -2,7 +2,7 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import DomainBadge from '../../components/DomainBadge.astro';
-import { listDomains } from '../../lib/domains.mjs';
+import { listDomains, rootOf, childrenOf } from '../../lib/domains.mjs';
 import { noteUrl } from '../../lib/routes.mjs';
 
 const notes = (await getCollection('notes', ({ data }) => !data.draft)).sort((a, b) =>
@@ -15,9 +15,20 @@ for (const n of notes) {
   counts.set(key, (counts.get(key) ?? 0) + 1);
 }
 
-const domains = listDomains()
-  .filter((d) => (counts.get(d.id) ?? 0) > 0)
-  .sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0));
+// Chips are grouped by family: a root chip matches its whole subtree, so
+// filtering by Databases does not hide every Oracle note one level down.
+const subtreeCount = (id: string) =>
+  (counts.get(id) ?? 0) + childrenOf(id).reduce((s, c) => s + (counts.get(c.id) ?? 0), 0);
+
+const chips = listDomains()
+  .filter((d) => !d.parent && subtreeCount(d.id) > 0)
+  .sort((a, b) => subtreeCount(b.id) - subtreeCount(a.id))
+  .flatMap((root) => [
+    { ...root, n: subtreeCount(root.id), child: false },
+    ...childrenOf(root.id)
+      .filter((c) => (counts.get(c.id) ?? 0) > 0)
+      .map((c) => ({ ...c, n: counts.get(c.id) ?? 0, child: true })),
+  ]);
 
 // Only tags used more than once are worth a chip; the long tail belongs to search.
 const tagCounts = new Map<string, number>();
@@ -49,17 +60,18 @@ const MASTERY = ['stub', 'learning', 'solid', 'teachable'] as const;
             >All</button
           >
           {
-            domains.map((d) => (
+            chips.map((d) => (
               <button
                 class="chip"
                 type="button"
                 data-facet="domain"
                 data-value={d.id}
+                data-child={d.child ? '' : undefined}
                 aria-pressed="false"
                 style={`--c: var(--domain-${d.id})`}
               >
                 {d.name}
-                <span class="chip__n">{counts.get(d.id)}</span>
+                <span class="chip__n">{d.n}</span>
               </button>
             ))
           }
@@ -118,6 +130,7 @@ const MASTERY = ['stub', 'learning', 'solid', 'teachable'] as const;
           <li
             class="row"
             data-domain={n.data.domain ?? '_none'}
+            data-domain-root={n.data.domain ? rootOf(n.data.domain) : '_none'}
             data-tags={n.data.tags.join('|')}
             data-mastery={n.data.mastery}
           >
@@ -148,7 +161,9 @@ const MASTERY = ['stub', 'learning', 'solid', 'teachable'] as const;
     const active = { domain: 'all', tag: 'all', mastery: 'all' };
 
     const matches = (row) =>
-      (active.domain === 'all' || row.dataset.domain === active.domain) &&
+      (active.domain === 'all' ||
+        row.dataset.domain === active.domain ||
+        row.dataset.domainRoot === active.domain) &&
       (active.tag === 'all' || row.dataset.tags.split('|').includes(active.tag)) &&
       (active.mastery === 'all' || row.dataset.mastery === active.mastery);
 
@@ -260,6 +275,22 @@ const MASTERY = ['stub', 'learning', 'solid', 'teachable'] as const;
     color: var(--c, var(--text));
     border-color: color-mix(in oklab, var(--c, var(--text)) 50%, transparent);
     background: color-mix(in oklab, var(--c, var(--text)) 14%, transparent);
+  }
+
+  /* A child chip reads as belonging to the root chip before it. */
+  .chip[data-child] {
+    margin-left: calc(var(--sp-2) * -1 + 2px);
+    font-size: var(--size-xs);
+    opacity: 0.85;
+  }
+
+  .chip[data-child]::before {
+    content: '';
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 50%;
+    background: var(--c, var(--text-faint));
+    margin-right: var(--sp-1);
   }
 
   .chip__n {

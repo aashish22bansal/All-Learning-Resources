@@ -2,7 +2,7 @@
 title: BULK COLLECT and the context switch
 summary: Why row-by-row PL/SQL is slow, what a context switch actually costs, and why BULK COLLECT without LIMIT trades one problem for a worse one.
 aliases: ['bulk collect', 'bulk binding']
-domain: databases
+domain: oracle-db
 mastery: solid
 difficulty: 3
 tags: ['plsql', 'performance', 'oracle']

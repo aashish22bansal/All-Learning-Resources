@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "astro dev",
-    "build": "node scripts/check-links.mjs && astro build",
+    "build": "node scripts/check-links.mjs && node scripts/check-colors.mjs && astro build",
     "rebuild": "npm run clean && npm run build",
     "preview": "astro preview",
     "check": "astro check",
@@ -14,7 +14,8 @@
     "verify": "npm run rebuild && npm run crawl",
     "new": "node scripts/new-note.mjs",
     "tidy": "node scripts/tidy.mjs",
-    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true});require('node:fs').rmSync('.astro',{recursive:true,force:true});require('node:fs').rmSync('node_modules/.astro',{recursive:true,force:true})\""
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true});require('node:fs').rmSync('.astro',{recursive:true,force:true});require('node:fs').rmSync('node_modules/.astro',{recursive:true,force:true})\"",
+    "check:colors": "node scripts/check-colors.mjs"
   },
   "dependencies": {
     "@astrojs/markdown-satteri": "^0.4.1",

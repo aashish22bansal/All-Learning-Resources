@@ -2,6 +2,7 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import MasteryBar from '../../components/MasteryBar.astro';
+import DomainBadge from '../../components/DomainBadge.astro';
 import { listDomains, getDomain } from '../../lib/domains.mjs';
 import { getLinkGraph } from '../../lib/links.mjs';
 import { noteSlug, noteUrl } from '../../lib/routes.mjs';
@@ -12,12 +13,17 @@ export async function getStaticPaths() {
 
 const { domain } = Astro.props;
 const all = await getCollection('notes', ({ data }) => !data.draft);
-const notes = all.filter((n) => n.data.domain === domain.id);
+
+const children = listDomains().filter((d) => d.parent === domain.id);
+
+// A parent rolls up its children, otherwise /domains/databases/ shows an empty
+// state while holding every Oracle note one level down.
+const subtree = new Set([domain.id, ...children.map((c) => c.id)]);
+const notes = all.filter((n) => n.data.domain && subtree.has(n.data.domain));
 
 const hubs = notes.filter((n) => n.data.hub);
 const rest = notes.filter((n) => !n.data.hub).sort((a, b) => a.data.title.localeCompare(b.data.title));
 
-const children = listDomains().filter((d) => d.parent === domain.id);
 const parent = domain.parent ? getDomain(domain.parent) : null;
 
 const tagCounts = new Map<string, number>();
@@ -126,7 +132,10 @@ const minutes = notes.reduce((s, n) => s + n.data.estMinutes, 0);
                       <span class="row__title">{n.data.title}</span>
                       {n.data.summary && <span class="row__summary">{n.data.summary}</span>}
                     </span>
-                    <span class="row__mins">{n.data.estMinutes} min</span>
+                    <span class="row__meta">
+                      {n.data.domain !== domain.id && <DomainBadge domain={n.data.domain} compact />}
+                      <span class="row__mins">{n.data.estMinutes} min</span>
+                    </span>
                   </a>
                 </li>
               ))}
@@ -357,6 +366,13 @@ const minutes = notes.reduce((s, n) => s + n.data.estMinutes, 0);
     color: var(--text-muted);
     font-size: 0.9375rem;
     max-width: 60ch;
+  }
+
+  .row__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    flex: none;
   }
 
   .row__mins {

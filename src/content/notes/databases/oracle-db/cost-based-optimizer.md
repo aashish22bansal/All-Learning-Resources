@@ -2,7 +2,7 @@
 title: The cost-based optimizer as an optimization problem
 summary: Oracle's CBO and a gradient descent optimizer are solving the same shape of problem. Where that analogy is genuinely useful, and where it quietly breaks.
 aliases: ['CBO', 'query optimizer', 'cost based optimizer']
-domain: databases
+domain: oracle-db
 mastery: learning
 difficulty: 4
 prereqs: ['gradient-descent']

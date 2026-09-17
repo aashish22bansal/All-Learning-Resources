@@ -74,7 +74,8 @@ export function getNoteIndex() {
     const note = {
       slug,
       path,
-      folder: path.includes('/') ? path.split('/')[0] : null,
+      dir: path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : null,
+      root: path.includes('/') ? path.split('/')[0] : null,
       file,
       url: `/notes/${slug}/`,
       title: data.title ?? slug,

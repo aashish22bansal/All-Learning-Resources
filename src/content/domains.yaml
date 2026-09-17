@@ -1,31 +1,84 @@
 # Domain registry.
 #
 # Add a line to add a domain. Nothing else needs to change — the schema, the
-# colours, the filters, the domain pages and the folder check all read this file.
+# colours, the filters, the domain pages and the folder layout all read this file.
 #
 #   name   required. Shown everywhere.
 #   short  required. 2-3 characters. Carries the identity on badges, because
 #          colour alone stops distinguishing domains somewhere past fifteen.
 #   blurb  optional. One line, shown on the domain page.
-#   hue    optional. 0-359. Pin it to keep a colour stable forever; leave it out
-#          and one is derived from the id.
+#   parent optional. One level only. A child's notes live under the parent's
+#          folder, and it inherits the parent's hue so the family reads together.
+#   hue    optional. 0-359. Pin it on a root to fix that family's colour. Pinning
+#          it on a child overrides the inherited hue and costs the family cue.
 #   color  optional. Full override, escapes the generator entirely.
-#   parent optional. One level, grouping only. Use tags for real structure.
 #
-# Keep domains coarse — aim for 8 to 20. Tags do the fine-grained work.
-# "agents", "rag", "context-engineering" are tags under llms, not domains.
+# Colour is hue-per-family, lightness-per-member. A family holds a root plus
+# about five children before its members stop separating by lightness — past
+# that the short code is doing the identifying. `data-engineering` and
+# `programming` are both at that limit already.
+#
+# Tags do the fine-grained work. "rag", "jvm", "indexing" are tags, not domains.
+
+# ---------- Databases ----------
 
 databases:
   name: Databases
   short: DB
-  blurb: Oracle, SQL, PL/SQL, storage engines, query processing and the theory underneath them.
+  blurb: Storage engines, query processing, transactions and the theory underneath them.
   hue: 186
+
+oracle-db:
+  name: Oracle Database
+  short: ORA
+  blurb: PL/SQL, the optimizer, 19c administration and the parts of Oracle that pay the bills.
+  parent: databases
+
+postgresql:
+  name: PostgreSQL
+  short: PG
+  blurb: The open-source database worth knowing second, and where it differs from Oracle.
+  parent: databases
+
+# ---------- Data engineering ----------
 
 data-engineering:
   name: Data Engineering
   short: DE
-  blurb: Pipelines, Spark, streaming, warehousing and moving data at size.
+  blurb: Moving data at size — pipelines, batch, streaming and the systems that carry them.
   hue: 215
+
+hadoop:
+  name: Apache Hadoop
+  short: HDP
+  blurb: HDFS, YARN and MapReduce — the foundation most of this ecosystem still rests on.
+  parent: data-engineering
+
+spark:
+  name: Apache Spark
+  short: SPK
+  blurb: Distributed computation over datasets that do not fit on one machine.
+  parent: data-engineering
+
+pyspark:
+  name: PySpark
+  short: PYS
+  blurb: Spark from Python, and what that boundary costs you.
+  parent: data-engineering
+
+kafka:
+  name: Apache Kafka
+  short: KFK
+  blurb: The distributed log, and why so much streaming architecture is built on one.
+  parent: data-engineering
+
+sqoop:
+  name: Apache Sqoop
+  short: SQP
+  blurb: Retired bulk transfer between Hadoop and relational databases — still met in legacy estates.
+  parent: data-engineering
+
+# ---------- Machine learning ----------
 
 machine-learning:
   name: Machine Learning
@@ -37,21 +90,53 @@ deep-learning:
   name: Deep Learning
   short: DL
   blurb: Neural architectures, representation learning and what scale changes.
-  hue: 30
   parent: machine-learning
 
 llms:
   name: LLMs & Agents
   short: LLM
   blurb: Language models, agents, context engineering, evaluation and the tooling around them.
-  hue: 288
   parent: machine-learning
+
+# ---------- Programming ----------
 
 programming:
   name: Programming
   short: PRG
-  blurb: Languages, algorithms, data structures and the craft of writing code.
+  blurb: Languages, correctness and the craft of writing code that survives contact with time.
   hue: 120
+
+java:
+  name: Java
+  short: JVA
+  blurb: The JVM, its memory model, and the language most enterprise data tooling is written in.
+  parent: programming
+
+python:
+  name: Python
+  short: PY
+  blurb: The language of data work, and the runtime details that decide whether it is fast.
+  parent: programming
+
+scala:
+  name: Scala
+  short: SCL
+  blurb: The JVM language Spark is written in, and functional programming on the way through.
+  parent: programming
+
+algorithms:
+  name: Algorithms
+  short: ALG
+  blurb: Complexity, paradigms and the problems worth recognising on sight.
+  parent: programming
+
+data-structures:
+  name: Data Structures
+  short: DS
+  blurb: The shapes data takes in memory, and what each one makes cheap or expensive.
+  parent: programming
+
+# ---------- Everything else ----------
 
 systems:
   name: Systems
@@ -88,4 +173,3 @@ communication:
   short: COM
   blurb: Writing, speaking, explaining hard things and being understood.
   hue: 80
-

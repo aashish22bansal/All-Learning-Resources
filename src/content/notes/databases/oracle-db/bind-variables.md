@@ -2,7 +2,7 @@
 title: Bind variables
 summary: The one habit that fixes parsing overhead and SQL injection at the same time — and why string concatenation is never the faster option.
 aliases: ['binds', 'bind variable']
-domain: databases
+domain: oracle-db
 mastery: solid
 difficulty: 2
 tags: ['plsql', 'performance', 'security', 'oracle']

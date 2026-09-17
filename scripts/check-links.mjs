@@ -12,6 +12,7 @@
  * record what to write next, so it must never block a build.
  */
 import { getNoteIndex } from '../src/lib/note-index.mjs';
+import { domainPath } from '../src/lib/domains.mjs';
 import { getLinkGraph, getOrphans } from '../src/lib/links.mjs';
 
 const strict = process.argv.includes('--strict');
@@ -44,14 +45,16 @@ let warned = false;
 
 // ---- warning: folder does not match domain ---------------------------------
 
+// The folder tree mirrors the registry, so a note's directory must equal its
+// domain's parent chain. A tree that lies is worse than no tree.
 const drift = notes.filter(
-  (n) => n.domain && n.folder && n.folder !== '_inbox' && n.folder !== n.domain && !n.draft,
+  (n) => n.domain && n.root !== '_inbox' && n.dir !== domainPath(n.domain) && !n.draft,
 );
 
 if (drift.length > 0) {
   warned = true;
   console.log(`${tag} ${yellow('folder does not match domain')} ${dim('(run `npm run tidy`)')}`);
-  for (const n of drift) console.log(`  ${n.path} ${dim(`→ should be in ${n.domain}/`)}`);
+  for (const n of drift) console.log(`  ${n.path} ${dim(`→ should be in ${domainPath(n.domain)}/`)}`);
 }
 
 // ---- warning: unresolved link targets --------------------------------------

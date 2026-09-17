@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import { getNoteIndex, normalizeKey } from '../src/lib/note-index.mjs';
-import { DOMAIN_IDS, getDomain } from '../src/lib/domains.mjs';
+import { DOMAIN_IDS, getDomain, domainPath } from '../src/lib/domains.mjs';
 
 const dim = (s) => `\x1b[2m${s}\x1b[0m`;
 const bold = (s) => `\x1b[1m${s}\x1b[0m`;
@@ -94,7 +94,7 @@ const lines = [
   '',
 ].filter((l) => l !== null);
 
-const folder = domain ?? '_inbox';
+const folder = domain ? domainPath(domain) : '_inbox';
 const dir = join(process.cwd(), 'src', 'content', 'notes', folder);
 const file = join(dir, `${slug}.md`);
 
